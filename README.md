@@ -6,7 +6,7 @@ This is a fork of [openmac/KeepMacAudioAlive](https://github.com/openmac/KeepMac
 ## How to use
 1. Download the app from [releases](https://github.com/jd200172/KeepMacAudioAlive/releases), or build it with Xcode (see [How to build](#how-to-build)).
 2. The release build is ad-hoc signed and not notarized. Follow the install steps in the release notes to allow it on macOS.
-3. Open the app. It lives in the menu bar (no Dock icon or window) and starts sending digital silence to the last used output device, or to the system default on first run.
+3. Open the app. It lives in the menu bar (no Dock icon or window) and starts sending digital silence to the last used output device. On first run it picks a Bluetooth output (the system default if it is Bluetooth, otherwise the first one found), or the system default if none is connected. It also remembers whether you left it running or stopped.
 4. Click the menu bar icon to:
    - **Stop / Start** the silence stream (⌘S). A manual stop is kept until you click Start.
    - **Switch the output device.** While running, the stream moves to the new device.

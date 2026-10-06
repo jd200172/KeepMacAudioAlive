@@ -34,8 +34,8 @@ final class AudioKeeper {
         selectedName = Preferences.selectedDeviceName
         devices = CoreAudioDevices.outputDevices()
 
-        if selectedUID == nil, let uid = CoreAudioDevices.defaultOutputDeviceUID(),
-           let device = devices.first(where: { $0.uid == uid }) {
+        if selectedUID == nil,
+           let device = AudioDevice.initialSelection(from: devices, defaultUID: CoreAudioDevices.defaultOutputDeviceUID()) {
             remember(device)
         }
 

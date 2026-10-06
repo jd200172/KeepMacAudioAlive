@@ -4,6 +4,15 @@ struct AudioDevice: Equatable {
     let id: AudioDeviceID
     let uid: String
     let name: String
+    let isBluetooth: Bool
+
+    /// Device to pick when nothing is saved yet: the system default output if it is Bluetooth, otherwise the
+    /// first Bluetooth output, otherwise the system default output.
+    static func initialSelection(from devices: [AudioDevice], defaultUID: String?) -> AudioDevice? {
+        let systemDefault = devices.first { $0.uid == defaultUID }
+        if let systemDefault, systemDefault.isBluetooth { return systemDefault }
+        return devices.first { $0.isBluetooth } ?? systemDefault
+    }
 }
 
 enum CoreAudioDevices {
@@ -24,7 +33,8 @@ enum CoreAudioDevices {
         return ids.compactMap { id in
             guard hasOutputStreams(id),
                   let uid = stringProperty(id, kAudioDevicePropertyDeviceUID) else { return nil }
-            return AudioDevice(id: id, uid: uid, name: stringProperty(id, kAudioObjectPropertyName) ?? uid)
+            return AudioDevice(id: id, uid: uid, name: stringProperty(id, kAudioObjectPropertyName) ?? uid,
+                               isBluetooth: isBluetooth(id))
         }
     }
 
@@ -48,6 +58,18 @@ enum CoreAudioDevices {
             mElement: kAudioObjectPropertyElementMain
         )
         AudioObjectAddPropertyListenerBlock(system, &address, .main, handler)
+    }
+
+    private static func isBluetooth(_ id: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var transport: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &transport) == noErr else { return false }
+        return transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE
     }
 
     private static func hasOutputStreams(_ id: AudioDeviceID) -> Bool {

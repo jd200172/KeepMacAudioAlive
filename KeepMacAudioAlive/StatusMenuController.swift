@@ -27,11 +27,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     private func updateIcon() {
         guard let button = statusItem.button else { return }
-        let symbol = keeper.state == .waiting ? "cable.connector.slash" : "waveform"
         let label = "KeepMacAudioAlive: \(statusDescription)"
 
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
-        button.appearsDisabled = keeper.state == .stopped
+        button.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: label)
+        button.appearsDisabled = keeper.state != .running
         button.toolTip = label
     }
 

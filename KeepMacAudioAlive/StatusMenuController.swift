@@ -27,13 +27,20 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     private func updateIcon() {
         guard let button = statusItem.button else { return }
-        let waiting = keeper.state == .waiting
-        let symbol = waiting ? "cable.connector.slash" : "waveform"
-        let label = "KeepMacAudioAlive: \(status.title)"
+        let symbol = keeper.state == .waiting ? "cable.connector.slash" : "waveform"
+        let label = "KeepMacAudioAlive: \(statusDescription)"
 
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         button.appearsDisabled = keeper.state == .stopped
         button.toolTip = label
+    }
+
+    private var statusDescription: String {
+        switch keeper.state {
+        case .running: "active"
+        case .stopped: "stopped"
+        case .waiting: "waiting for device"
+        }
     }
 
     // MARK: - Menu
@@ -47,23 +54,22 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         isMenuOpen = false
     }
 
-    private var status: (title: String, detail: String, color: NSColor) {
-        let name = keeper.selectedName
-        switch keeper.state {
-        case .running:
-            return ("Keeping Audio Alive", name ?? "", .systemGreen)
-        case .stopped:
-            return ("Stopped", name ?? "No output device selected", .tertiaryLabelColor)
-        case .waiting:
-            return ("Waiting for Device", name.map { "\($0) not connected" } ?? "No output device", .systemOrange)
+    /// Green while running, red when stopped, amber while waiting for the selected device.
+    private func statusDot() -> NSImage {
+        let color: NSColor = switch keeper.state {
+        case .running: .systemGreen
+        case .stopped: .systemRed
+        case .waiting: .systemOrange
+        }
+        return NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
+            color.setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            return true
         }
     }
 
     private func rebuildMenu() {
         menu.removeAllItems()
-
-        menu.addItem(headerItem())
-        menu.addItem(.separator())
 
         let toggle = NSMenuItem(title: keeper.state == .stopped ? "Start" : "Stop",
                                 action: #selector(toggleRunning), keyEquivalent: "s")
@@ -71,20 +77,27 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(toggle)
         menu.addItem(.separator())
 
-        menu.addItem(.sectionHeader(title: "Output Device"))
+        // The status dot takes the place of the checkmark on the selected device.
+        let dot = statusDot()
         let selectedIsPresent = keeper.devices.contains { $0.uid == keeper.selectedUID }
         if let name = keeper.selectedName, !selectedIsPresent {
-            let missing = NSMenuItem(title: name, action: nil, keyEquivalent: "")
+            let missing = NSMenuItem()
+            missing.attributedTitle = NSAttributedString(
+                string: name,
+                attributes: [.font: NSFont.menuFont(ofSize: 0), .foregroundColor: NSColor.tertiaryLabelColor]
+            )
+            missing.onStateImage = dot
             missing.state = .on
-            missing.isEnabled = false
-            missing.badge = NSMenuItemBadge(string: "Disconnected")
             menu.addItem(missing)
         }
         for (index, device) in keeper.devices.enumerated() {
             let item = NSMenuItem(title: device.name, action: #selector(selectDevice(_:)), keyEquivalent: "")
             item.target = self
             item.tag = index
-            item.state = device.uid == keeper.selectedUID ? .on : .off
+            if device.uid == keeper.selectedUID {
+                item.onStateImage = dot
+                item.state = .on
+            }
             menu.addItem(item)
         }
         if keeper.devices.isEmpty && keeper.selectedName == nil {
@@ -99,55 +112,13 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         login.state = LoginItem.isEnabled ? .on : .off
         menu.addItem(login)
 
-        let about = NSMenuItem(title: "About KeepMacAudioAlive", action: #selector(showAbout), keyEquivalent: "")
+        let about = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
-        menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit KeepMacAudioAlive", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-    }
-
-    private func headerItem() -> NSMenuItem {
-        let status = status
-        let dot = NSImageView(image: NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
-            status.color.setFill()
-            NSBezierPath(ovalIn: rect).fill()
-            return true
-        })
-        let title = NSTextField(labelWithString: status.title)
-        title.font = .menuFont(ofSize: 0)
-        let stack = NSStackView(views: [title])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 0
-        if !status.detail.isEmpty {
-            let detail = NSTextField(labelWithString: status.detail)
-            detail.font = .menuFont(ofSize: 11)
-            detail.textColor = .secondaryLabelColor
-            detail.lineBreakMode = .byTruncatingTail
-            stack.addArrangedSubview(detail)
-        }
-
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 38))
-        for subview in [dot, stack] {
-            subview.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(subview)
-        }
-        NSLayoutConstraint.activate([
-            dot.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
-            dot.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            dot.widthAnchor.constraint(equalToConstant: 8),
-            dot.heightAnchor.constraint(equalToConstant: 8),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 30),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -14),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-        ])
-
-        let item = NSMenuItem()
-        item.view = view
-        return item
     }
 
     // MARK: - Actions

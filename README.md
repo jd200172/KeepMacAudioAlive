@@ -4,8 +4,8 @@ Keep Mac audio alive to prevent delays or pops with some DACs.
 This is a fork of [openmac/KeepMacAudioAlive](https://github.com/openmac/KeepMacAudioAlive) by Ali Rastegar. It turns the original windowed app into a menu bar utility with a lower memory footprint (see [Credits](#credits)).
 
 ## How to use
-1. Build the app with Xcode (see [How to build](#how-to-build)). This fork has no prebuilt releases yet.
-2. If you run an unsigned or ad-hoc signed build, allow it in the macOS security settings.
+1. Download the app from [releases](https://github.com/jd200172/KeepMacAudioAlive/releases), or build it with Xcode (see [How to build](#how-to-build)).
+2. The release build is ad-hoc signed and not notarized. Follow the install steps in the release notes to allow it on macOS.
 3. Open the app. It lives in the menu bar (no Dock icon or window) and starts sending digital silence to the last used output device, or to the system default on first run.
 4. Click the menu bar icon to:
    - **Stop / Start** the silence stream (⌘S). A manual stop is kept until you click Start.

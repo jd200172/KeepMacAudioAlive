@@ -43,6 +43,59 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
     }
 
+    // MARK: - Markers
+
+    /// Every item gets a marker image of this size (dot, checkmark, or blank). AppKit only reserves the
+    /// leading state column while some item shows a state, so a uniform marker keeps the text aligned
+    /// no matter which items are checked.
+    ///
+    /// The glyph sits `markerInset` points inside the image so the gap from the menu's left edge to the glyph
+    /// matches the gap from the shortcut text to the right edge (about 18.5 pt on macOS 26).
+    private static let markerGlyphWidth: CGFloat = 14
+    private static let markerInset: CGFloat = 4
+    private static let markerSize = NSSize(width: markerInset + markerGlyphWidth, height: 14)
+
+    private static let blankMarker = NSImage(size: markerSize, flipped: false) { _ in true }
+
+    private static let checkMarker: NSImage = {
+        let symbol = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
+        let image = NSImage(size: markerSize, flipped: false) { rect in
+            if let symbol {
+                let size = symbol.size
+                symbol.draw(in: NSRect(x: markerInset + (markerGlyphWidth - size.width) / 2,
+                                       y: (rect.height - size.height) / 2,
+                                       width: size.width, height: size.height))
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+
+    private static func dotMarker(_ color: NSColor) -> NSImage {
+        NSImage(size: markerSize, flipped: false) { rect in
+            color.setFill()
+            NSBezierPath(ovalIn: NSRect(x: markerInset + (markerGlyphWidth - 8) / 2,
+                                        y: (rect.height - 8) / 2, width: 8, height: 8)).fill()
+            return true
+        }
+    }
+
+    /// Green while running, red when stopped, amber while waiting for the selected device.
+    private var statusMarker: NSImage {
+        switch keeper.state {
+        case .running: Self.dotMarker(.systemGreen)
+        case .stopped: Self.dotMarker(.systemRed)
+        case .waiting: Self.dotMarker(.systemOrange)
+        }
+    }
+
+    private func setMarker(_ image: NSImage, on item: NSMenuItem) {
+        item.onStateImage = image
+        item.state = .on
+    }
+
     // MARK: - Menu
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -54,31 +107,17 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         isMenuOpen = false
     }
 
-    /// Green while running, red when stopped, amber while waiting for the selected device.
-    private func statusDot() -> NSImage {
-        let color: NSColor = switch keeper.state {
-        case .running: .systemGreen
-        case .stopped: .systemRed
-        case .waiting: .systemOrange
-        }
-        return NSImage(size: NSSize(width: 8, height: 8), flipped: false) { rect in
-            color.setFill()
-            NSBezierPath(ovalIn: rect).fill()
-            return true
-        }
-    }
-
     private func rebuildMenu() {
         menu.removeAllItems()
 
         let toggle = NSMenuItem(title: keeper.state == .stopped ? "Start" : "Stop",
                                 action: #selector(toggleRunning), keyEquivalent: "s")
         toggle.target = self
+        setMarker(Self.blankMarker, on: toggle)
         menu.addItem(toggle)
         menu.addItem(.separator())
 
         // The status dot takes the place of the checkmark on the selected device.
-        let dot = statusDot()
         let selectedIsPresent = keeper.devices.contains { $0.uid == keeper.selectedUID }
         if let name = keeper.selectedName, !selectedIsPresent {
             let missing = NSMenuItem()
@@ -86,38 +125,37 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 string: name,
                 attributes: [.font: NSFont.menuFont(ofSize: 0), .foregroundColor: NSColor.tertiaryLabelColor]
             )
-            missing.onStateImage = dot
-            missing.state = .on
+            setMarker(statusMarker, on: missing)
             menu.addItem(missing)
         }
         for (index, device) in keeper.devices.enumerated() {
             let item = NSMenuItem(title: device.name, action: #selector(selectDevice(_:)), keyEquivalent: "")
             item.target = self
             item.tag = index
-            if device.uid == keeper.selectedUID {
-                item.onStateImage = dot
-                item.state = .on
-            }
+            setMarker(device.uid == keeper.selectedUID ? statusMarker : Self.blankMarker, on: item)
             menu.addItem(item)
         }
         if keeper.devices.isEmpty && keeper.selectedName == nil {
             let none = NSMenuItem(title: "No Output Devices", action: nil, keyEquivalent: "")
             none.isEnabled = false
+            setMarker(Self.blankMarker, on: none)
             menu.addItem(none)
         }
         menu.addItem(.separator())
 
         let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
         login.target = self
-        login.state = LoginItem.isEnabled ? .on : .off
+        setMarker(LoginItem.isEnabled ? Self.checkMarker : Self.blankMarker, on: login)
         menu.addItem(login)
 
         let about = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
+        setMarker(Self.blankMarker, on: about)
         menu.addItem(about)
 
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
+        setMarker(Self.blankMarker, on: quit)
         menu.addItem(quit)
     }
 

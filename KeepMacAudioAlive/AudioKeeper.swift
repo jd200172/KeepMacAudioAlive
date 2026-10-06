@@ -24,7 +24,7 @@ final class AudioKeeper {
     /// Called on the main thread after every state, device, or selection change.
     var onChange: (() -> Void)?
 
-    private var wantsRunning = true
+    private var wantsRunning = Preferences.wantsRunning ?? true
     private var isSleeping = false
     private var ioProcID: AudioDeviceIOProcID?
     private var activeDeviceID: AudioDeviceID?
@@ -64,11 +64,13 @@ final class AudioKeeper {
 
     func start() {
         wantsRunning = true
+        Preferences.wantsRunning = true
         reconcile()
     }
 
     func stop() {
         wantsRunning = false
+        Preferences.wantsRunning = false
         reconcile()
     }
 

@@ -4,13 +4,15 @@ Keep Mac audio alive to prevent delays or pops with some DACs.
 ## How to use
 1. Download the app from [releases](https://github.com/openmac/KeepMacAudioAlive/releases).
 2. Allow the app to run via security settings on macOS settings, or build the app yourself using Xcode.
-3. Open the app, it starts sending silence to the selected device automatically:
-<img width="424" height="200" alt="appimage151" src="https://github.com/user-attachments/assets/92c47100-6bac-4640-918a-2b8b228b9b8e" />
+3. Open the app. It lives in the menu bar (no Dock icon or window) and starts sending digital silence to the last used output device, or to the system default on first run.
+4. Click the menu bar icon to:
+   - **Stop / Start** the silence stream (⌘S). A manual stop is kept until you click Start.
+   - **Switch the output device.** While running, the stream moves to the new device.
+   - Enable **Launch at Login**.
 
+If the selected device is unplugged, the app waits and resumes by itself when it comes back. It also releases the device while the Mac sleeps and restarts it on wake.
 
-4. You can stop and change it to another device then click Start again.
-
-You can set this app to start at startup too (thanks to JIW's contributions).
+The app is idle between events: no timers or polling, only the audio callback while the stream is running.
 
 
 ## How to build
